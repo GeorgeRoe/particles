@@ -1,4 +1,5 @@
 program main
+  use iso_fortran_env
   implicit none
 
   ! define positions of the particles
@@ -9,7 +10,7 @@ program main
   real :: cutoff = 0.49
 
   ! stores the number of pairs counted
-  integer :: pairs
+  integer(kind=int64) :: pairs
 
   ! read the file
   call read_file(posx, posy, posz)
@@ -104,7 +105,7 @@ contains
     res = sqrt(res)
   end function magnitude
 
-  integer function count_pairs(posx, posy, posz, lower_boundary, upper_boundary, cutoff) result(pairs)
+  integer(kind=int64) function count_pairs(posx, posy, posz, lower_boundary, upper_boundary, cutoff) result(pairs)
     implicit none
 
     ! the positions of the particles and the boundaries they reside in
