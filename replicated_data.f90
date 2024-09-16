@@ -59,6 +59,10 @@ program main
 
   if (rank == 0) print *, "total pairs found", sum_pairs
 
+  deallocate(posx)
+  deallocate(posy)
+  deallocate(posz)
+
   call MPI_FINALIZE(ierr)
 
 contains
