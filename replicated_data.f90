@@ -176,14 +176,13 @@ contains
 
     ! temporary variables for looping
     integer :: i, j, axis
-    integer(kind=int64) :: current_pair, within 
+    integer(kind=int64) :: current_pair
 
     ! current is the current particle in the loop
     real, dimension(3) :: i_pos, j_pos, difference
 
     pairs = 0
     current_pair = 0
-    within = 0
 
     ! loop through the pairs
     do i = 1, size(posx)
@@ -193,7 +192,6 @@ contains
         current_pair = current_pair + 1
         if (current_pair >= start_index .and. current_pair <= end_index) then
           j_pos = [posx(j), posy(j), posz(j)]
-          within = within + 1
 
           ! find the difference between the two positions
           do axis = 1, 3
