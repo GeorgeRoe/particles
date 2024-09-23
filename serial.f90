@@ -44,6 +44,8 @@ contains
     ! define the format of the columnar data and read it into the variables
     9 format(f20.17, 4x, f20.17, 4x, f20.17)
     read(11, 9) posx, posy, posz
+
+    close(11)
   end subroutine read_file
 
   ! finds the distance between two points on an axis through a PBC boundary
