@@ -9,7 +9,7 @@ program main
 
   ! define boundaries of the simulation and the cutoff distance
   real, dimension(3) :: lower_boundary = [0,0,0], upper_boundary = [1,1,1]
-  real :: cutoff = 0.49
+  real :: cutoff = 0.5
   
   ! temporary variables in which the result of the file read is stored
   real, dimension(:), allocatable :: readx, ready, readz

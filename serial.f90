@@ -7,7 +7,7 @@ program main
 
   ! define boundaries of the simulation and the cutoff distance
   real, dimension(3) :: lower_boundary = [0,0,0], upper_boundary = [1,1,1]
-  real :: cutoff = 0.49
+  real :: cutoff = 0.5
 
   ! stores the number of pairs counted
   integer(kind=int64) :: pairs
