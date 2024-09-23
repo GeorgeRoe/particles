@@ -87,6 +87,7 @@ contains
     ! the subsequent lines statustore data in columns for the x, y and z positions of the particles
     real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
     integer, intent(inout) :: file_length
+    integer ::  line
 
     ! open the file
     open(11, file = "particle_data.txt", status = "old")
@@ -100,7 +101,10 @@ contains
 
     ! define the format of the columnar data and read it into the variables
     9 format(f20.17, 4x, f20.17, 4x, f20.17)
-    read(11, 9) posx, posy, posz
+
+    do line = 1, file_length
+      read(11, 9) posx(line), posy(line), posz(line)
+    end do
 
     close(11)
   end subroutine read_file

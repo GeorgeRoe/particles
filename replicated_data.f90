@@ -75,6 +75,7 @@ contains
     ! the subsequent lines store data in columns for the x, y and z positions of the particles
     real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
     integer, intent(inout) :: file_length
+    integer :: line
 
     ! open the file
     if (rank == 0) open(11, file = "particle_data.txt", status = "old")
@@ -89,7 +90,12 @@ contains
 
     ! define the format of the columnar data and read it into the variables
     9 format(f20.17, 4x, f20.17, 4x, f20.17)
-    if (rank == 0) read(11, 9) posx, posy, posz
+    if (rank == 0) then
+      do line = 1, file_length
+        read(11, 9) posx(line), posy(line), posz(line)
+      end do
+    end if
+
     call MPI_BCAST(posx, file_length, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(posy, file_length, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(posz, file_length, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
