@@ -13,7 +13,7 @@ program main
 
   ! define boundaries of the simulation and the cutoff distance
   real, dimension(3) :: lower_boundary = [0,0,0], upper_boundary = [1,1,1]
-  real :: cutoff = 0.5
+  real :: cutoff = 0.05
 
   ! variables for storing the indicies in which the process should chech
   integer(kind=int64) :: start_index, end_index, total_pairs

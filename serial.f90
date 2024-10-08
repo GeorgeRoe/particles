@@ -7,7 +7,7 @@ program main
 
   ! define boundaries of the simulation and the cutoff distance
   real, dimension(3) :: lower_boundary = [0,0,0], upper_boundary = [1,1,1]
-  real :: cutoff = 0.5
+  real :: cutoff = 0.05
 
   ! stores the number of pairs counted
   integer(kind=int64) :: pairs
@@ -126,7 +126,7 @@ contains
     real, dimension(3) :: i_pos, j_pos, difference
 
     pairs = 0
-   
+  
     ! nested loop to get each combination of particles
     do i = 1, size(posx)
       ! get the current positions of the particles being looped over
