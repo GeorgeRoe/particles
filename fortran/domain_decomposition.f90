@@ -9,7 +9,7 @@ program main
   ! cartesian communicator variables
   integer :: comm_cart
   integer :: ndims = 3
-  integer, dimension(3) :: dims
+  integer, dimension(3) :: dims = [0, 0, 0]
   logical, dimension(3) :: periods = [.true.,.true.,.true.]
   logical :: reorder = .true.
 
@@ -37,7 +37,7 @@ program main
   call MPI_COMM_SIZE(MPI_COMM_WORLD, nprocs, ierr)
 
   ! find out how many domains per dimension
-  call prime_factors(nprocs, dims)
+  call MPI_DIMS_CREATE(nprocs, ndims, dims, ierr)
   if (rank == 0) print *, "dims:", dims
 
   ! create the cartesian communicator and find the processes position in the grid
@@ -71,44 +71,6 @@ program main
   call MPI_FINALIZE(ierr)
 
 contains
-
-  ! gets 3 prime factors for a number
-  subroutine prime_factors(num, res)
-    implicit none
-
-    ! input
-    integer, intent(in) :: num
-
-    ! output
-    integer, dimension(3), intent(inout) :: res
-
-    ! running total
-    integer :: running
-
-    ! looping variables
-    integer :: i, j
-
-    running = num
-    res = [1,1,1]
-
-    do i = 1, size(res) - 1
-      do j = 2, running / 2
-        if (mod(running, j) == 0) then
-          res(i) = j
-          running = running / j
-          exit
-        end if
-      end do
-
-      if (res(i) == 1) then
-        res(i) = running
-        running = 1
-        exit
-      end if
-    end do
-
-    res(size(res)) = running
-  end subroutine prime_factors
 
   ! reads the file and extracts the particles within the processes domain
   subroutine read_file(posx, posy, posz, posi, particle_count, &
