@@ -1,4 +1,5 @@
 program main
+  use iso_fortran_env
   use mpi
 
   implicit none
@@ -29,7 +30,7 @@ program main
   real, dimension(3) :: lower_domain, upper_domain
 
   ! the number of pairs found
-  integer :: pairs, sum_pairs
+  integer(kind=int64) :: pairs, sum_pairs
 
   ! mpi boilerplate
   call MPI_INIT(ierr)
@@ -57,7 +58,7 @@ program main
     cutoff, rank, coord, dims, comm_cart) 
 
   ! sum results
-  call MPI_REDUCE(pairs, sum_pairs, 1, MPI_INTEGER, MPI_SUM, 0, comm_cart, ierr)
+  call MPI_REDUCE(pairs, sum_pairs, 1, MPI_INTEGER8, MPI_SUM, 0, comm_cart, ierr)
 
   ! print results
   if (rank == 0) print *, "pairs:", sum_pairs
@@ -343,7 +344,7 @@ contains
   end subroutine correct_positions
 
   ! shares particles with neighbouring processes and counts the pairs between them
-  integer function count_pairs(posx, posy, posz, posi, particle_count, &
+  integer(kind=int64) function count_pairs(posx, posy, posz, posi, particle_count, &
     lower_domain, upper_domain, lower_boundary, upper_boundary, cutoff, &
     rank, coord, dims, comm_cart) result(pairs)
 
