@@ -6,14 +6,14 @@ program main
   real, dimension(:), allocatable :: posx, posy, posz
 
   ! define boundaries of the simulation and the cutoff distance
-  real, dimension(3) :: lower_boundary = [0,0,0], upper_boundary = [1,1,1]
-  real :: cutoff = 0.05
+  real, dimension(3) :: lower_boundary, upper_boundary
+  real :: cutoff
 
   ! stores the number of pairs counted
   integer(kind=int64) :: pairs
 
   ! read the file
-  call read_file(posx, posy, posz)
+  call read_files(posx, posy, posz, lower_boundary, upper_boundary, cutoff)
 
   ! run the pair finding algorithm and print the result
   pairs = count_pairs(posx, posy, posz, lower_boundary, upper_boundary, cutoff)
@@ -21,8 +21,99 @@ program main
   print *, pairs
 
 contains
+
+  ! reads data from the config and particle data files
+  subroutine read_files(posx, posy, posz, lower_boundary, upper_boundary, cutoff)
+    implicit none
+
+    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+
+    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    real, intent(inout) :: cutoff
+    
+    integer :: num_particles, seed
+
+    logical :: file_exists
+
+    call read_config(lower_boundary, upper_boundary, cutoff, num_particles, seed)
+
+    inquire(file="particle_data.txt", exist=file_exists)
+    if (file_exists) then
+      call read_data(posx, posy, posz)
+    else
+      call generate_data(seed, num_particles, lower_boundary, upper_boundary, posx, posy, posz)
+    end if
+
+  end subroutine read_files
+
+  ! reads the data from the config file
+  subroutine read_config(lower_boundary, upper_boundary, cutoff, num_particles, seed)
+    implicit none
+
+    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    real, intent(inout) :: cutoff
+    integer, intent(inout) :: num_particles, seed 
+
+    ! open the config file
+    open(12, file = "config.txt", status = "old")
+
+    ! read the data from the config file
+    read(12, *) num_particles
+    read(12, *) seed
+    read(12, *) cutoff
+    read(12, *) lower_boundary
+    read(12, *) upper_boundary
+
+    ! close the config file
+    close(12)
+  end subroutine read_config
+
+  ! generates particle data
+  subroutine generate_data(seed, num_particles, lower_boundary, upper_boundary, posx, posy, posz)
+    implicit none
+
+    integer, intent(in) :: seed, num_particles
+    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+
+    ! array to generate the random particles into
+    real, dimension(:,:), allocatable :: particles 
+
+    ! distance between boundary walls on each axis
+    real, dimension(3) :: boundary_diff
+    
+    ! looping varialbes
+    integer :: axis, i
+
+    ! random calls require an array of length 8
+    integer, dimension(8) :: seed_array
+    seed_array = seed
+
+    ! find the distance between the simulation bounds
+    do axis = 1, 3
+      boundary_diff(axis) = upper_boundary(axis) - lower_boundary(axis)
+    end do
+
+    ! allocate space in all arrays
+    allocate(posx(num_particles))
+    allocate(posy(num_particles))
+    allocate(posz(num_particles))
+
+    allocate(particles(num_particles,3))
+
+    ! set the seed and then generate the random particles
+    call random_seed(put=seed_array)
+    call random_number(particles)
+
+    do i = 1, num_particles
+      posx(i) = lower_boundary(1) + particles(i, 1) * boundary_diff(1)
+      posy(i) = lower_boundary(2) + particles(i, 2) * boundary_diff(2)
+      posz(i) = lower_boundary(3) + particles(i, 3) * boundary_diff(3)
+    end do
+  end subroutine generate_data
+
   ! reads particle data from the particle data file
-  subroutine read_file(posx, posy, posz)
+  subroutine read_data(posx, posy, posz)
     implicit none
 
     ! files are formatted as such:
@@ -48,7 +139,7 @@ contains
     end do
 
     close(11)
-  end subroutine read_file
+  end subroutine read_data
 
   ! finds the distance between two points on an axis through a PBC boundary
   real function PBC_distance(a, b, lower_boundary, upper_boundary) result(difference)

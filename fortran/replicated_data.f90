@@ -26,8 +26,8 @@ program main
   call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, nprocs, ierr)
 
-  ! read the file
-  call read_file(posx, posy, posz, particle_count)
+  ! read the necessary files
+  call read_files(posx, posy, posz, total_particle_count, lower_boundary, upper_boundary, cutoff, rank, ierr)
 
   ! find the starting and ending index that the process should work between
   ! calculations are split to avoid implicitly lowering precision
@@ -66,43 +66,182 @@ program main
   call MPI_FINALIZE(ierr)
 
 contains
-  ! reads particle data from the particle data file
-  subroutine read_file(posx, posy, posz, file_length)
+
+  ! reads data from the config and particle data files
+  subroutine read_files(posx, posy, posz, &
+    particle_count, lower_boundary, upper_boundary, cutoff, &
+    rank, ierr)
     implicit none
 
-    ! files are formatted as such:
-    ! the first line contains how many rows worth of data the file stores
-    ! the subsequent lines store data in columns for the x, y and z positions of the particles
+    ! params
     real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
-    integer, intent(inout) :: file_length
-    integer :: line
+    integer, intent(inout) :: particle_count
 
-    ! open the file
-    if (rank == 0) open(11, file = "particle_data.txt", status = "old")
+    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    real, intent(inout) :: cutoff
 
-    ! read how many lines of data the file holds and allocate the space
-    if (rank == 0) read(11, *) file_length
+    ! mpi variables
+    integer, intent(in) :: rank
+    integer, intent(inout) :: ierr
+    
+    ! temp variables
+    integer :: num_particles, seed
+    logical :: file_exists
+
+    call read_config(lower_boundary, upper_boundary, cutoff, num_particles, seed, rank, ierr)
+
+    inquire(file="particle_data.txt", exist=file_exists)
+
+    if (file_exists) then
+      call read_data(posx, posy, posz, lower_boundary, upper_boundary, rank, ierr)
+    else
+      call generate_data(posx, posy, posz, seed, num_particles, lower_boundary, upper_boundary, rank, ierr)
+    end if
+  end subroutine read_files
+
+  ! reads the data from the config file
+  subroutine read_config(lower_boundary, upper_boundary, cutoff, num_particles, seed, rank, ierr)
+    implicit none
+
+    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    real, intent(inout) :: cutoff
+    integer, intent(inout) :: num_particles, seed 
+
+    ! mpi variables
+    integer, intent(in) :: rank
+    integer, intent(inout) :: ierr
+
+    if (rank == 0) then
+      ! open the config file
+      open(12, file = "config.txt", status = "old")
+
+      ! read the data from the config file
+      read(12, *) num_particles
+      read(12, *) seed
+      read(12, *) cutoff
+      read(12, *) lower_boundary
+      read(12, *) upper_boundary
+
+      ! close the config file
+      close(12)
+    end if
+
+    call MPI_BCAST(num_particles, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(seed, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(num_particles, 1, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(lower_boundary, 3, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(upper_boundary, 3, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
+  end subroutine read_config
+
+  ! generates particle data
+  subroutine generate_data(posx, posy, posz, seed, num_particles, lower_boundary, upper_boundary, rank, ierr)
+    implicit none
+
+    integer, intent(in) :: seed, num_particles
+    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+
+    ! array to generate the random particles into
+    real, dimension(:,:), allocatable :: particles 
+
+    ! distance between boundary walls on each axis
+    real, dimension(3) :: boundary_diff
+    
+    ! looping varialbes
+    integer :: axis, i
+
+    ! mpi variables
+    integer, intent(in) :: rank
+    integer, intent(inout) :: ierr
+
+    ! random calls require an array of length 8
+    integer, dimension(8) :: seed_array
+    seed_array = seed
+
+    ! allocate space in all arrays
+    allocate(posx(num_particles))
+    allocate(posy(num_particles))
+    allocate(posz(num_particles))
+
+    if (rank == 0) then
+      ! find the distance between the simulation bounds
+      do axis = 1, 3
+        boundary_diff(axis) = upper_boundary(axis) - lower_boundary(axis)
+      end do
+
+      allocate(particles(num_particles,3))
+
+      ! set the seed and then generate the random particles
+      call random_seed(put=seed_array)
+      call random_number(particles)
+
+      do i = 1, num_particles
+        posx(i) = lower_boundary(1) + particles(i, 1) * boundary_diff(1)
+        posy(i) = lower_boundary(2) + particles(i, 2) * boundary_diff(2)
+        posz(i) = lower_boundary(3) + particles(i, 3) * boundary_diff(3)
+      end do
+    end if
+
+    call MPI_BCAST(posx, num_particles, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(posy, num_particles, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(posz, num_particles, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
+  end subroutine generate_data
+  
+  ! reads the file and extracts the particles within the processes domain
+  subroutine read_data(posx, posy, posz, &
+                       lower_boundary, upper_boundary, &
+                       rank, ierr)
+    implicit none
+
+    ! variables to be filled with particles and the total number of particles
+    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+
+    ! the bounds of the simulation
+    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+
+    ! temporary variables that hold unfiltered data from the file
+    integer :: file_length, line
+
+    ! mpi variables
+    integer, intent(in) :: rank
+    integer, intent(inout) :: ierr
+
+    ! used to iterate over the particles to filter them
+    integer :: i
+
+    if (rank == 0) then
+      ! define the format of the file and open it
+      9 format(f20.17, 4x, f20.17, 4x, f20.17)
+      
+      open(11, file="particle_data.txt", status="old")
+    
+      ! get the number of particles in the file
+      read(11, *) file_length
+    end if
+
+    ! sync
     call MPI_BCAST(file_length, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
+    ! allocate space into the arrays to store the particles
     allocate(posx(file_length))
     allocate(posy(file_length))
     allocate(posz(file_length))
 
-    ! define the format of the columnar data and read it into the variables
-    9 format(f20.17, 4x, f20.17, 4x, f20.17)
     if (rank == 0) then
+      ! read the positions of the particles into the unfiltered array
       do line = 1, file_length
         read(11, 9) posx(line), posy(line), posz(line)
       end do
+
+      ! close file
+      close(11)
     end if
 
+    ! sync the values read from the file between the processes
     call MPI_BCAST(posx, file_length, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(posy, file_length, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(posz, file_length, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
-
-    ! close the file
-    if (rank == 0) close(11)
-  end subroutine read_file
+  end subroutine read_data
 
   ! finds the distance between two points on an axis through a PBC boundary
   real function PBC_distance(a, b, lower_boundary, upper_boundary) result(difference)
