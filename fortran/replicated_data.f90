@@ -26,8 +26,12 @@ program main
   call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, nprocs, ierr)
 
+  ! setup timestamps
+  if (rank == 0) print *, "[TIME] init", elapsed_time()
+
   ! read the necessary files
-  call read_files(posx, posy, posz, total_particle_count, lower_boundary, upper_boundary, cutoff, rank, ierr)
+  call read_files(posx, posy, posz, particle_count, lower_boundary, upper_boundary, cutoff, rank, ierr)
+  if (rank == 0) print *, "[TIME] files read", elapsed_time()
 
   ! find the starting and ending index that the process should work between
   ! calculations are split to avoid implicitly lowering precision
@@ -46,18 +50,24 @@ program main
   else
     end_index = ((rank + 1) / dble(nprocs)) * total_pairs
   end if
-  print *, "rank", rank, "will start at index", start_index, "and end at index", end_index, "of", total_pairs
+
+  if (rank == 0) print *, "[TIME] calculated indexes", elapsed_time()
 
   ! run the pair finding algorithm and print the result
   pairs = count_pairs( &
     posx, posy, posz, &
     lower_boundary, upper_boundary, &
     start_index, end_index, cutoff)
-  print *, "rank", rank, "found", pairs, "pairs"
+
+  if (rank == 0) then
+    print *, "[TIME] counted pairs", elapsed_time()
+    print *, "[TIME] total elapsed time", elapsed_time(.true.)
+  end if
 
   call MPI_REDUCE(pairs, sum_pairs, 1, MPI_INTEGER8, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
-  if (rank == 0) print *, "total pairs found", sum_pairs
+  ! print results
+  if (rank == 0) print *, " [LOG] pairs", sum_pairs
 
   deallocate(posx)
   deallocate(posy)
@@ -66,6 +76,31 @@ program main
   call MPI_FINALIZE(ierr)
 
 contains
+
+  ! returns the elapsed time since the function was last called
+  real(kind=8) function elapsed_time(get_total) result(elapsed)
+    implicit none
+
+    ! whether or not to return the running total
+    logical, intent(in), optional :: get_total
+    
+    ! implicit static keeps values between function calls
+    real(kind=8) :: start_time = 0.0, end_time = 0.0, running_total = 0.0
+    logical :: initialised = .false.
+  
+    if (present(get_total) .and. initialised) then ! if asking for the total then return it
+      elapsed = running_total
+    else if (initialised) then ! if the function has already been called once before
+      start_time = end_time
+      end_time = MPI_WTIME()
+      elapsed = end_time - start_time
+      running_total = running_total + elapsed
+    else ! if this is the first time the function is ran
+      start_time = MPI_WTIME()
+      initialised = .true.
+      elapsed = 0.0
+    end if
+  end function elapsed_time
 
   ! reads data from the config and particle data files
   subroutine read_files(posx, posy, posz, &
@@ -85,17 +120,17 @@ contains
     integer, intent(inout) :: ierr
     
     ! temp variables
-    integer :: num_particles, seed
+    integer :: seed
     logical :: file_exists
 
-    call read_config(lower_boundary, upper_boundary, cutoff, num_particles, seed, rank, ierr)
+    call read_config(lower_boundary, upper_boundary, cutoff, particle_count, seed, rank, ierr)
 
     inquire(file="particle_data.txt", exist=file_exists)
 
     if (file_exists) then
       call read_data(posx, posy, posz, lower_boundary, upper_boundary, rank, ierr)
     else
-      call generate_data(posx, posy, posz, seed, num_particles, lower_boundary, upper_boundary, rank, ierr)
+      call generate_data(posx, posy, posz, seed, particle_count, lower_boundary, upper_boundary, rank, ierr)
     end if
   end subroutine read_files
 

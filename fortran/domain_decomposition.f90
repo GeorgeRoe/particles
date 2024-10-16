@@ -37,19 +37,24 @@ program main
   call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, nprocs, ierr)
 
+  ! setup timestamps
+  if (rank == 0) print *, "[TIME] init", elapsed_time()
+
   ! find out how many domains per dimension
   call MPI_DIMS_CREATE(nprocs, ndims, dims, ierr)
-  if (rank == 0) print *, "dims:", dims
+  if (rank == 0) print *, "[TIME] dims created", elapsed_time() 
+  if (rank == 0) print *, " [LOG] dims:", dims
 
   ! create the cartesian communicator and find the processes position in the grid
   call MPI_CART_CREATE(MPI_COMM_WORLD, ndims, dims, periods, reorder, comm_cart, ierr)
   call MPI_CART_COORDS(comm_cart, rank, ndims, coord, ierr)
+  if (rank == 0) print *, "[TIME] cartesian communicator setup", elapsed_time()
 
   ! find the domain bounds and filter the file for particles within the bounds
   call read_files(posx, posy, posz, posi, particle_count, &
                  lower_boundary, upper_boundary, lower_domain, upper_domain, cutoff, &
                  rank, dims, coord, comm_cart, ierr)
-  print *, rank, "files read", particle_count
+  if (rank == 0) print *, "[TIME] files read", elapsed_time()
 
   pairs = count_pairs( &
     posx, posy, posz, posi, particle_count, &
@@ -57,11 +62,16 @@ program main
     lower_boundary, upper_boundary, &
     cutoff, rank, coord, dims, comm_cart) 
 
+  if (rank == 0) then
+    print *, "[TIME] counted pairs", elapsed_time()
+    print *, "[TIME] total elapsed time", elapsed_time(.true.)
+  end if
+
   ! sum results
   call MPI_REDUCE(pairs, sum_pairs, 1, MPI_INTEGER8, MPI_SUM, 0, comm_cart, ierr)
 
   ! print results
-  if (rank == 0) print *, "pairs:", sum_pairs
+  if (rank == 0) print *, " [LOG] pairs", sum_pairs
 
   ! end the program
   deallocate(posx)
@@ -72,6 +82,31 @@ program main
   call MPI_FINALIZE(ierr)
 
 contains
+
+  ! returns the elapsed time since the function was last called
+  real(kind=8) function elapsed_time(get_total) result(elapsed)
+    implicit none
+
+    ! whether or not to return the running total
+    logical, intent(in), optional :: get_total
+    
+    ! implicit static keeps values between function calls
+    real(kind=8) :: start_time = 0.0, end_time = 0.0, running_total = 0.0
+    logical :: initialised = .false.
+  
+    if (present(get_total) .and. initialised) then ! if asking for the total then return it
+      elapsed = running_total
+    else if (initialised) then ! if the function has already been called once before
+      start_time = end_time
+      end_time = MPI_WTIME()
+      elapsed = end_time - start_time
+      running_total = running_total + elapsed
+    else ! if this is the first time the function is ran
+      start_time = MPI_WTIME()
+      initialised = .true.
+      elapsed = 0.0
+    end if
+  end function elapsed_time
 
   ! reads data from the config and particle data files
   subroutine read_files(posx, posy, posz, posi, particle_count, &
@@ -121,7 +156,6 @@ contains
 
 
     particle_count = size(filteri)
-    print *, rank, particle_count
     allocate(posx(particle_count))
     allocate(posy(particle_count))
     allocate(posz(particle_count))
@@ -632,6 +666,8 @@ contains
         end do
       end do
     end do
+
+    if (rank == 0) print *, "[TIME] shared particles", elapsed_time()
 
     ! loops between all possible pairs of particles to find which ones are in range
     pairs = 0

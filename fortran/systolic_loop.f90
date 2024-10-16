@@ -29,13 +29,15 @@ program main
   call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
   call MPI_COMM_SIZE(MPI_COMM_WORLD, nprocs, ierr)
 
+  if (rank == 0) print *, "[TIME] init", elapsed_time()
+
   ! read the necessary files
   call read_files(globalx, globaly, globalz, global_particle_count, lower_boundary, upper_boundary, cutoff, rank, ierr)
+  if (rank == 0) print *, "[TIME] files read", elapsed_time()
 
   ! calculate the number of particles each process will handle
   if (rank == 0) local_particle_count = global_particle_count / nprocs
   call MPI_BCAST(local_particle_count, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-  print *, rank, "global", global_particle_count, "local", local_particle_count
 
   ! allocate space in the particle arrays
   allocate(localx(local_particle_count))
@@ -56,9 +58,15 @@ program main
   foreigny = localy
   foreignz = localz
 
+  if (rank == 0) print *, "[TIME] particles distributed", elapsed_time()
+
   ! do calculations
   pairs = count_pairs(localx, localy, localz, foreignx, foreignz, foreigny, lower_boundary, upper_boundary, cutoff, rank, nprocs, ierr)
 
+  if (rank == 0) then
+    print *, "[TIME] counted pairs", elapsed_time()
+    print *, "[TIME] total elapsed time", elapsed_time(.true.)
+  end if
   ! sum results
   call MPI_REDUCE(pairs, sum_pairs, 1, MPI_INTEGER8, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
@@ -66,11 +74,36 @@ program main
   sum_pairs = sum_pairs / 2
 
   ! print results
-  if (rank == 0) print *, "total pairs found", sum_pairs
+  if (rank == 0) print *, " [LOG] total pairs found", sum_pairs
 
   call MPI_FINALIZE(ierr)
 
 contains
+
+  ! returns the elapsed time since the function was last called
+  real(kind=8) function elapsed_time(get_total) result(elapsed)
+    implicit none
+
+    ! whether or not to return the running total
+    logical, intent(in), optional :: get_total
+    
+    ! implicit static keeps values between function calls
+    real(kind=8) :: start_time = 0.0, end_time = 0.0, running_total = 0.0
+    logical :: initialised = .false.
+  
+    if (present(get_total) .and. initialised) then ! if asking for the total then return it
+      elapsed = running_total
+    else if (initialised) then ! if the function has already been called once before
+      start_time = end_time
+      end_time = MPI_WTIME()
+      elapsed = end_time - start_time
+      running_total = running_total + elapsed
+    else ! if this is the first time the function is ran
+      start_time = MPI_WTIME()
+      initialised = .true.
+      elapsed = 0.0
+    end if
+  end function elapsed_time
 
   ! reads data from the config and particle data files
   subroutine read_files(posx, posy, posz, &

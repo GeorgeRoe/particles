@@ -12,15 +12,45 @@ program main
   ! stores the number of pairs counted
   integer(kind=int64) :: pairs
 
+  print *, "[TIME] init", elapsed_time()
+
   ! read the file
   call read_files(posx, posy, posz, lower_boundary, upper_boundary, cutoff)
+  print *, "[TIME] files read", elapsed_time()
 
   ! run the pair finding algorithm and print the result
   pairs = count_pairs(posx, posy, posz, lower_boundary, upper_boundary, cutoff)
-
-  print *, pairs
+  print *, "[TIME] counted pairs", elapsed_time()  
+  
+  print *, "[TIME] total elapsed time", elapsed_time(.true.)
+  print *, " [LOG] pairs", pairs
 
 contains
+
+  ! returns the elapsed time since the function was last called
+  real function elapsed_time(get_total) result(elapsed)
+    implicit none
+
+    ! whether or not to return the running total
+    logical, intent(in), optional :: get_total
+    
+    ! implicit static keeps values between function calls
+    real :: start_time = 0.0, end_time = 0.0, running_total = 0.0
+    logical :: initialised = .false.
+  
+    if (present(get_total) .and. initialised) then ! if asking for the total then return it
+      elapsed = running_total
+    else if (initialised) then ! if the function has already been called once before
+      start_time = end_time
+      call cpu_time(end_time)
+      elapsed = end_time - start_time
+      running_total = running_total + elapsed
+    else ! if this is the first time the function is ran
+      call cpu_time(start_time)
+      initialised = .true.
+      elapsed = 0.0
+    end if
+  end function elapsed_time
 
   ! reads data from the config and particle data files
   subroutine read_files(posx, posy, posz, lower_boundary, upper_boundary, cutoff)
