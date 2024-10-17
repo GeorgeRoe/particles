@@ -18,16 +18,16 @@ program main
   integer, dimension(3) :: coord
 
   ! define boundaries and the cutoff distance
-  real, dimension(3) :: lower_boundary = [0,0,0], upper_boundary = [1,1,1]
-  real :: cutoff = 0.05
+  double precision, dimension(3) :: lower_boundary = [0,0,0], upper_boundary = [1,1,1]
+  double precision :: cutoff = 0.05
 
   ! arrays to store the particles positions and indexes
-  real, dimension(:), allocatable :: posx, posy, posz
+  double precision, dimension(:), allocatable :: posx, posy, posz
   integer, dimension(:), allocatable :: posi
   integer :: particle_count
 
   ! variables for domain decomposition
-  real, dimension(3) :: lower_domain, upper_domain
+  double precision, dimension(3) :: lower_domain, upper_domain
 
   ! the number of pairs found
   integer(kind=int64) :: pairs, sum_pairs
@@ -115,19 +115,19 @@ contains
     implicit none
 
     ! params
-    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    double precision, dimension(:), allocatable, intent(inout) :: posx, posy, posz
     integer, dimension(:), allocatable, intent(inout) :: posi
     integer, intent(inout) :: particle_count
 
-    real, dimension(:), allocatable :: tempx, tempy, tempz
+    double precision, dimension(:), allocatable :: tempx, tempy, tempz
     integer, dimension(:), allocatable :: tempi
 
-    real, dimension(:), allocatable :: filterx, filtery, filterz
+    double precision, dimension(:), allocatable :: filterx, filtery, filterz
     integer, dimension(:), allocatable :: filteri
 
-    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
-    real, dimension(3), intent(inout) :: lower_domain, upper_domain
-    real, intent(inout) :: cutoff
+    double precision, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    double precision, dimension(3), intent(inout) :: lower_domain, upper_domain
+    double precision, intent(inout) :: cutoff
 
     ! mpi variables
     integer, intent(in) :: rank, comm
@@ -154,7 +154,6 @@ contains
       lower_domain, upper_domain, lower_boundary, upper_boundary, &
       filterx, filtery, filterz, filteri)
 
-
     particle_count = size(filteri)
     allocate(posx(particle_count))
     allocate(posy(particle_count))
@@ -171,8 +170,8 @@ contains
   subroutine read_config(lower_boundary, upper_boundary, cutoff, num_particles, seed, rank, comm, ierr)
     implicit none
 
-    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
-    real, intent(inout) :: cutoff
+    double precision, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    double precision, intent(inout) :: cutoff
     integer, intent(inout) :: num_particles, seed 
 
     ! mpi variables
@@ -196,9 +195,9 @@ contains
 
     call MPI_BCAST(num_particles, 1, MPI_INTEGER, 0, comm, ierr)
     call MPI_BCAST(seed, 1, MPI_INTEGER, 0, comm, ierr)
-    call MPI_BCAST(num_particles, 1, MPI_REAL, 0, comm, ierr)
-    call MPI_BCAST(lower_boundary, 3, MPI_REAL, 0, comm, ierr)
-    call MPI_BCAST(upper_boundary, 3, MPI_REAL, 0, comm, ierr)
+    call MPI_BCAST(cutoff, 1, MPI_DOUBLE, 0, comm, ierr)
+    call MPI_BCAST(lower_boundary, 3, MPI_DOUBLE, 0, comm, ierr)
+    call MPI_BCAST(upper_boundary, 3, MPI_DOUBLE, 0, comm, ierr)
   end subroutine read_config
 
   ! generates particle data
@@ -206,15 +205,15 @@ contains
     implicit none
 
     integer, intent(in) :: seed, num_particles
-    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    double precision, dimension(:), allocatable, intent(inout) :: posx, posy, posz
     integer, dimension(:), allocatable, intent(inout) :: posi
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
     ! array to generate the random particles into
-    real, dimension(:,:), allocatable :: particles 
+    double precision, dimension(:,:), allocatable :: particles 
 
     ! distance between boundary walls on each axis
-    real, dimension(3) :: boundary_diff
+    double precision, dimension(3) :: boundary_diff
     
     ! looping varialbes
     integer :: axis, i
@@ -253,9 +252,9 @@ contains
       end do
     end if
 
-    call MPI_BCAST(posx, num_particles, MPI_REAL, 0, comm, ierr)
-    call MPI_BCAST(posy, num_particles, MPI_REAL, 0, comm, ierr)
-    call MPI_BCAST(posz, num_particles, MPI_REAL, 0, comm, ierr)
+    call MPI_BCAST(posx, num_particles, MPI_DOUBLE, 0, comm, ierr)
+    call MPI_BCAST(posy, num_particles, MPI_DOUBLE, 0, comm, ierr)
+    call MPI_BCAST(posz, num_particles, MPI_DOUBLE, 0, comm, ierr)
     call MPI_BCAST(posi, num_particles, MPI_INTEGER, 0, comm, ierr)
   end subroutine generate_data
   
@@ -266,11 +265,11 @@ contains
     implicit none
 
     ! variables to be filled with particles and the total number of particles
-    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    double precision, dimension(:), allocatable, intent(inout) :: posx, posy, posz
     integer, dimension(:), allocatable, intent(inout) :: posi
 
     ! the bounds of the simulation
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
     ! temporary variables that hold unfiltered data from the file
     integer :: file_length, line
@@ -313,9 +312,9 @@ contains
     end if
 
     ! sync the values read from the file between the processes
-    call MPI_BCAST(posx, file_length, MPI_REAL, 0, comm, ierr)
-    call MPI_BCAST(posy, file_length, MPI_REAL, 0, comm, ierr)
-    call MPI_BCAST(posz, file_length, MPI_REAL, 0, comm, ierr)
+    call MPI_BCAST(posx, file_length, MPI_DOUBLE, 0, comm, ierr)
+    call MPI_BCAST(posy, file_length, MPI_DOUBLE, 0, comm, ierr)
+    call MPI_BCAST(posz, file_length, MPI_DOUBLE, 0, comm, ierr)
     call MPI_BCAST(posi, file_length, MPI_INTEGER, 0, comm, ierr)
   end subroutine read_data
 
@@ -326,17 +325,17 @@ contains
     implicit none
 
     ! the particles to filter
-    real, dimension(:), allocatable, intent(in) :: origx, origy, origz
+    double precision, dimension(:), allocatable, intent(in) :: origx, origy, origz
     integer, dimension(:), allocatable, intent(in) :: origi
     integer, intent(in) :: particle_count
 
     ! the bounds of the region
-    real, dimension(3), intent(in) :: lower_region, upper_region
+    double precision, dimension(3), intent(in) :: lower_region, upper_region
 
     ! the bounds of the simulation
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
-    real, dimension(:), allocatable, intent(inout) :: filterx, filtery, filterz
+    double precision, dimension(:), allocatable, intent(inout) :: filterx, filtery, filterz
     integer, dimension(:), allocatable, intent(inout) :: filteri
 
     ! temporary variables used for looping
@@ -375,13 +374,13 @@ contains
     implicit none
 
     ! the coordinates the check
-    real, intent(in) :: x, y, z
+    double precision, intent(in) :: x, y, z
 
     ! the region the coordinate should be checked against
-    real, dimension(3), intent(in) :: lower_region, upper_region
+    double precision, dimension(3), intent(in) :: lower_region, upper_region
 
     ! variables for iteration
-    real, dimension(3) :: position
+    double precision, dimension(3) :: position
     integer :: axis
 
     ! return true unless stated otherwise
@@ -396,9 +395,9 @@ contains
   end function within_region
 
   ! interpolates between two values, given a weight
-  real function lerp(lower, upper, weight) result(res)
+  double precision function lerp(lower, upper, weight) result(res)
     implicit none
-    real, intent(in) :: lower, upper, weight
+    double precision, intent(in) :: lower, upper, weight
 
     res = lower + weight * (upper - lower)
   end function lerp
@@ -408,35 +407,35 @@ contains
     implicit none
 
     integer, dimension(3), intent(in) :: dims, coord
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
-    real, dimension(3), intent(inout) :: lower_domain, upper_domain
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(3), intent(inout) :: lower_domain, upper_domain
 
     integer :: axis
 
     ! iterate over the axis and interpolate a distance between the upper and lower boundaries
     do axis = 1, size(dims)
-      lower_domain(axis) = lerp(lower_boundary(axis), upper_boundary(axis), coord(axis) / real(dims(axis)))
-      upper_domain(axis) = lerp(lower_boundary(axis), upper_boundary(axis), (coord(axis) + 1) / real(dims(axis)))
+      lower_domain(axis) = lerp(lower_boundary(axis), upper_boundary(axis), coord(axis) / dble(dims(axis)))
+      upper_domain(axis) = lerp(lower_boundary(axis), upper_boundary(axis), (coord(axis) + 1) / dble(dims(axis)))
     end do
   end subroutine get_domain
 
   ! finds the distance between two points on an axis normally (ignoring PBC)
-  real function distance(a, b) result(difference)
+  double precision function distance(a, b) result(difference)
     implicit none
 
     ! a and b are two points along an axis
-    real, intent(in) :: a, b
+    double precision, intent(in) :: a, b
 
     ! return the difference between the two points
     difference = abs(a - b)
   end function distance
 
   ! uses three dimensional pythagoras to find the magnitude of a vector
-  real function magnitude(vector) result(res)
+  double precision function magnitude(vector) result(res)
     implicit none
 
     ! vector is a array of values in the x, y and z axis
-    real, dimension(3), intent(in) :: vector
+    double precision, dimension(3), intent(in) :: vector
 
     ! axis stores the axis currently being looped over
     integer :: axis
@@ -457,13 +456,13 @@ contains
   logical function check_pair(ax, ay, az, ai, bx, by, bz, bi, lower_boundary, upper_boundary, cutoff) result(is_pair)
     implicit none
 
-    real, intent(in) :: ax, ay, az, bx, by, bz, cutoff
+    double precision, intent(in) :: ax, ay, az, bx, by, bz, cutoff
     integer, intent(in) :: ai, bi
 
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
 
-    real, dimension(3) :: a, b, difference
+    double precision, dimension(3) :: a, b, difference
 
     integer :: axis
 
@@ -490,10 +489,10 @@ contains
     integer, intent(in) :: direction, coord, dims
 
     ! the distance between the boundaries of the simulation on the axis
-    real, intent(in) :: boundary_diff
+    double precision, intent(in) :: boundary_diff
 
     ! the array of particle positions on the axis
-    real, dimension(:), intent(inout) :: particles
+    double precision, dimension(:), intent(inout) :: particles
     
     ! looping variables
     integer :: i
@@ -513,18 +512,18 @@ contains
     implicit none
 
     ! the positions of the particles within the processes domain
-    real, dimension(:), allocatable, intent(in) :: posx, posy, posz
+    double precision, dimension(:), allocatable, intent(in) :: posx, posy, posz
     integer, dimension(:), allocatable, intent(in) :: posi
     integer, intent(in) :: particle_count
 
     ! the bounds of the processes domain
-    real, dimension(3), intent(in) :: lower_domain, upper_domain
+    double precision, dimension(3), intent(in) :: lower_domain, upper_domain
 
     ! the boundaries of the simulation
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
     ! the maximum distance two particles can be from eachother before they are no longer considered a pair
-    real, intent(in) :: cutoff
+    double precision, intent(in) :: cutoff
 
     ! mpi variables
     integer, intent(in) :: rank, comm_cart, coord(3)
@@ -536,19 +535,19 @@ contains
     integer, dimension(3) :: direction
 
     ! region to filter particles in
-    real, dimension(3) :: lower_region, upper_region
+    double precision, dimension(3) :: lower_region, upper_region
 
     ! variables to store the filtered particles
-    real, dimension(:), allocatable :: filterx, filtery, filterz, filter
+    double precision, dimension(:), allocatable :: filterx, filtery, filterz, filter
     integer, dimension(:), allocatable :: filteri
 
     ! variables to store the accumulated neighbour particles
-    real, dimension(:), allocatable :: accumx, accumy, accumz
+    double precision, dimension(:), allocatable :: accumx, accumy, accumz
     integer, dimension(:), allocatable :: accumi
     integer :: accum_count
 
     ! variables to temporarily store particles received from neighbours
-    real, dimension(:), allocatable :: bufferx, buffery, bufferz
+    double precision, dimension(:), allocatable :: bufferx, buffery, bufferz
     integer, dimension(:), allocatable :: bufferi
 
     ! variables for sending data
@@ -558,7 +557,7 @@ contains
     integer :: pos_neighbour, neg_neighbour
 
     ! the distance between the bounds of the simulation for each axis
-    real, dimension(3) :: boundary_diff
+    double precision, dimension(3) :: boundary_diff
 
     ! find the distance between the bounds on each axis
     do axis = 1, 3
@@ -629,16 +628,16 @@ contains
             allocate(bufferi(buffer_size))
 
             ! send/receive particle data from neighbours
-            call MPI_SENDRECV(filterx, filter_size, MPI_REAL, neg_neighbour, j + rank, &
-                              bufferx, buffer_size, MPI_REAL, pos_neighbour, j + pos_neighbour, &
+            call MPI_SENDRECV(filterx, filter_size, MPI_DOUBLE, neg_neighbour, j + rank, &
+                              bufferx, buffer_size, MPI_DOUBLE, pos_neighbour, j + pos_neighbour, &
                               comm_cart, status, ierr)
 
-            call MPI_SENDRECV(filtery, filter_size, MPI_REAL, neg_neighbour, j + rank, &
-                              buffery, buffer_size, MPI_REAL, pos_neighbour, j + pos_neighbour, &
+            call MPI_SENDRECV(filtery, filter_size, MPI_DOUBLE, neg_neighbour, j + rank, &
+                              buffery, buffer_size, MPI_DOUBLE, pos_neighbour, j + pos_neighbour, &
                               comm_cart, status, ierr)
 
-            call MPI_SENDRECV(filterz, filter_size, MPI_REAL, neg_neighbour, j + rank, &
-                              bufferz, buffer_size, MPI_REAL, pos_neighbour, j + pos_neighbour, &
+            call MPI_SENDRECV(filterz, filter_size, MPI_DOUBLE, neg_neighbour, j + rank, &
+                              bufferz, buffer_size, MPI_DOUBLE, pos_neighbour, j + pos_neighbour, &
                               comm_cart, status, ierr)
 
             call MPI_SENDRECV(filteri, filter_size, MPI_INTEGER, neg_neighbour, j + rank, &

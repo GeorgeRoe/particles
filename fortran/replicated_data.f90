@@ -8,12 +8,12 @@ program main
   integer :: ierr, rank, nprocs
 
   ! define positions of the particles
-  real, dimension(:), allocatable :: posx, posy, posz
+  double precision, dimension(:), allocatable :: posx, posy, posz
   integer :: particle_count
 
   ! define boundaries of the simulation and the cutoff distance
-  real, dimension(3) :: lower_boundary = [0,0,0], upper_boundary = [1,1,1]
-  real :: cutoff = 0.05
+  double precision, dimension(3) :: lower_boundary = [0,0,0], upper_boundary = [1,1,1]
+  double precision :: cutoff = 0.05
 
   ! variables for storing the indicies in which the process should chech
   integer(kind=int64) :: start_index, end_index, total_pairs
@@ -109,11 +109,11 @@ contains
     implicit none
 
     ! params
-    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    double precision, dimension(:), allocatable, intent(inout) :: posx, posy, posz
     integer, intent(inout) :: particle_count
 
-    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
-    real, intent(inout) :: cutoff
+    double precision, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    double precision, intent(inout) :: cutoff
 
     ! mpi variables
     integer, intent(in) :: rank
@@ -138,8 +138,8 @@ contains
   subroutine read_config(lower_boundary, upper_boundary, cutoff, num_particles, seed, rank, ierr)
     implicit none
 
-    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
-    real, intent(inout) :: cutoff
+    double precision, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    double precision, intent(inout) :: cutoff
     integer, intent(inout) :: num_particles, seed 
 
     ! mpi variables
@@ -163,9 +163,9 @@ contains
 
     call MPI_BCAST(num_particles, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(seed, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(num_particles, 1, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(lower_boundary, 3, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(upper_boundary, 3, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(cutoff, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(lower_boundary, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(upper_boundary, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr)
   end subroutine read_config
 
   ! generates particle data
@@ -173,14 +173,14 @@ contains
     implicit none
 
     integer, intent(in) :: seed, num_particles
-    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
     ! array to generate the random particles into
-    real, dimension(:,:), allocatable :: particles 
+    double precision, dimension(:,:), allocatable :: particles 
 
     ! distance between boundary walls on each axis
-    real, dimension(3) :: boundary_diff
+    double precision, dimension(3) :: boundary_diff
     
     ! looping varialbes
     integer :: axis, i
@@ -217,9 +217,9 @@ contains
       end do
     end if
 
-    call MPI_BCAST(posx, num_particles, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(posy, num_particles, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(posz, num_particles, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(posx, num_particles, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(posy, num_particles, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(posz, num_particles, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr)
   end subroutine generate_data
   
   ! reads the file and extracts the particles within the processes domain
@@ -229,10 +229,10 @@ contains
     implicit none
 
     ! variables to be filled with particles and the total number of particles
-    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    double precision, dimension(:), allocatable, intent(inout) :: posx, posy, posz
 
     ! the bounds of the simulation
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
     ! temporary variables that hold unfiltered data from the file
     integer :: file_length, line
@@ -273,41 +273,41 @@ contains
     end if
 
     ! sync the values read from the file between the processes
-    call MPI_BCAST(posx, file_length, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(posy, file_length, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(posz, file_length, MPI_REAL, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(posx, file_length, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(posy, file_length, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(posz, file_length, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr)
   end subroutine read_data
 
   ! finds the distance between two points on an axis through a PBC boundary
-  real function PBC_distance(a, b, lower_boundary, upper_boundary) result(difference)
+  double precision function PBC_distance(a, b, lower_boundary, upper_boundary) result(difference)
     implicit none
 
     ! a and b are two points on an axis within the boundaries
     ! lower and upper boundary are the periodic boundary conditions
-    real, intent(in) :: a, b, lower_boundary, upper_boundary
+    double precision, intent(in) :: a, b, lower_boundary, upper_boundary
 
     ! the difference will be the sum of the distance between each particle and its closest boundary
     difference = min(upper_boundary - a, a - lower_boundary) + min(upper_boundary - b, b - lower_boundary)
   end function PBC_distance
 
   ! finds the distance between two points on an axis normally (ignoring PBC)
-  real function distance(a, b) result(difference)
+  double precision function distance(a, b) result(difference)
     implicit none
 
     ! a and b are two points along an axis
-    real, intent(in) :: a, b
+    double precision, intent(in) :: a, b
 
     ! return the difference between the two points
     difference = abs(a - b)
   end function distance
 
   ! finds both the PBC distance and the standard distance and returns the smallest value
-  real function shortest_distance(a, b, lower_boundary, upper_boundary) result(difference)
+  double precision function shortest_distance(a, b, lower_boundary, upper_boundary) result(difference)
     implicit none
 
     ! a and b are two points along an axis
     ! lower and upper boundary are the periodic boundary conditions
-    real, intent(in) :: a,b, lower_boundary, upper_boundary
+    double precision, intent(in) :: a,b, lower_boundary, upper_boundary
 
     difference = min( &
       distance(a, b), &
@@ -316,11 +316,11 @@ contains
   end function shortest_distance
 
   ! uses three dimensional pythagoras to find the magnitude of a vector
-  real function magnitude(vector) result(res)
+  double precision function magnitude(vector) result(res)
     implicit none
 
     ! vector is a array of values in the x, y and z axis
-    real, dimension(3), intent(in) :: vector
+    double precision, dimension(3), intent(in) :: vector
 
     ! axis stores the axis currently being looped over
     integer :: axis
@@ -345,21 +345,21 @@ contains
     implicit none
 
     ! the positions of the particles and the boundaries they reside in
-    real, dimension(:), allocatable, intent(in) :: posx, posy, posz
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(:), allocatable, intent(in) :: posx, posy, posz
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
     ! the pairs to iterate over and the indexes to start and end at
     integer(kind=int64), intent(in) :: start_index, end_index
 
     ! the maximum distance between particles that can be considered a "pair"
-    real, intent(in) :: cutoff
+    double precision, intent(in) :: cutoff
 
     ! temporary variables for looping
     integer :: i, j, axis
     integer(kind=int64) :: current_pair
 
     ! current is the current particle in the loop
-    real, dimension(3) :: i_pos, j_pos, difference
+    double precision, dimension(3) :: i_pos, j_pos, difference
 
     pairs = 0
     current_pair = 0

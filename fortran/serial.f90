@@ -3,11 +3,11 @@ program main
   implicit none
 
   ! define positions of the particles
-  real, dimension(:), allocatable :: posx, posy, posz
+  double precision, dimension(:), allocatable :: posx, posy, posz
 
   ! define boundaries of the simulation and the cutoff distance
-  real, dimension(3) :: lower_boundary, upper_boundary
-  real :: cutoff
+  double precision, dimension(3) :: lower_boundary, upper_boundary
+  double precision :: cutoff
 
   ! stores the number of pairs counted
   integer(kind=int64) :: pairs
@@ -56,10 +56,10 @@ contains
   subroutine read_files(posx, posy, posz, lower_boundary, upper_boundary, cutoff)
     implicit none
 
-    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    double precision, dimension(:), allocatable, intent(inout) :: posx, posy, posz
 
-    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
-    real, intent(inout) :: cutoff
+    double precision, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    double precision, intent(inout) :: cutoff
     
     integer :: num_particles, seed
 
@@ -73,15 +73,14 @@ contains
     else
       call generate_data(seed, num_particles, lower_boundary, upper_boundary, posx, posy, posz)
     end if
-
   end subroutine read_files
 
   ! reads the data from the config file
   subroutine read_config(lower_boundary, upper_boundary, cutoff, num_particles, seed)
     implicit none
 
-    real, dimension(3), intent(inout) :: lower_boundary, upper_boundary
-    real, intent(inout) :: cutoff
+    double precision, dimension(3), intent(inout) :: lower_boundary, upper_boundary
+    double precision, intent(inout) :: cutoff
     integer, intent(inout) :: num_particles, seed 
 
     ! open the config file
@@ -103,14 +102,14 @@ contains
     implicit none
 
     integer, intent(in) :: seed, num_particles
-    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
     ! array to generate the random particles into
-    real, dimension(:,:), allocatable :: particles 
+    double precision, dimension(:,:), allocatable :: particles 
 
     ! distance between boundary walls on each axis
-    real, dimension(3) :: boundary_diff
+    double precision, dimension(3) :: boundary_diff
     
     ! looping varialbes
     integer :: axis, i
@@ -149,7 +148,7 @@ contains
     ! files are formatted as such:
     ! the first line contains how many rows worth of data the file stores
     ! the subsequent lines store data in columns for the x, y and z positions of the particles
-    real, dimension(:), allocatable, intent(inout) :: posx, posy, posz
+    double precision, dimension(:), allocatable, intent(inout) :: posx, posy, posz
     integer :: file_length, line
 
     ! open the file
@@ -172,35 +171,35 @@ contains
   end subroutine read_data
 
   ! finds the distance between two points on an axis through a PBC boundary
-  real function PBC_distance(a, b, lower_boundary, upper_boundary) result(difference)
+  double precision function PBC_distance(a, b, lower_boundary, upper_boundary) result(difference)
     implicit none
 
     ! a and b are two points on an axis within the boundaries
     ! lower and upper boundary are the periodic boundary conditions
-    real, intent(in) :: a, b, lower_boundary, upper_boundary
+    double precision, intent(in) :: a, b, lower_boundary, upper_boundary
 
     ! the difference will be the sum of the distance between each particle and its closest boundary
     difference = min(upper_boundary - a, a - lower_boundary) + min(upper_boundary - b, b - lower_boundary)
   end function PBC_distance
 
   ! finds the distance between two points on an axis normally (ignoring PBC)
-  real function distance(a, b) result(difference)
+  double precision function distance(a, b) result(difference)
     implicit none
 
     ! a and b are two points along an axis
-    real, intent(in) :: a, b
+    double precision, intent(in) :: a, b
 
     ! return the difference between the two points
     difference = abs(a - b)
   end function distance
 
   ! finds both the PBC distance and the standard distance and returns the smallest value
-  real function shortest_distance(a, b, lower_boundary, upper_boundary) result(difference)
+  double precision function shortest_distance(a, b, lower_boundary, upper_boundary) result(difference)
     implicit none
 
     ! a and b are two points along an axis
     ! lower and upper boundary are the periodic boundary conditions
-    real, intent(in) :: a,b, lower_boundary, upper_boundary
+    double precision, intent(in) :: a,b, lower_boundary, upper_boundary
 
     difference = min( &
       distance(a, b), &
@@ -209,11 +208,11 @@ contains
   end function shortest_distance
 
   ! uses three dimensional pythagoras to find the magnitude of a vector
-  real function magnitude(vector) result(res)
+  double precision function magnitude(vector) result(res)
     implicit none
 
     ! vector is a array of values in the x, y and z axis
-    real, dimension(3), intent(in) :: vector
+    double precision, dimension(3), intent(in) :: vector
 
     ! axis stores the axis currently being looped over
     integer :: axis
@@ -234,17 +233,17 @@ contains
     implicit none
 
     ! the positions of the particles and the boundaries they reside in
-    real, dimension(:), allocatable, intent(in) :: posx, posy, posz
-    real, dimension(3), intent(in) :: lower_boundary, upper_boundary
+    double precision, dimension(:), allocatable, intent(in) :: posx, posy, posz
+    double precision, dimension(3), intent(in) :: lower_boundary, upper_boundary
 
     ! the maximum distance between particles that can be considered a "pair"
-    real, intent(in) :: cutoff
+    double precision, intent(in) :: cutoff
 
     ! temporary variables for looping
     integer :: i, j, axis
 
     ! current is the current particle in the loop
-    real, dimension(3) :: i_pos, j_pos, difference
+    double precision, dimension(3) :: i_pos, j_pos, difference
 
     pairs = 0
   
