@@ -63,10 +63,8 @@ program main
   ! do calculations
   pairs = count_pairs(localx, localy, localz, foreignx, foreignz, foreigny, lower_boundary, upper_boundary, cutoff, rank, nprocs, ierr)
 
-  if (rank == 0) then
-    print *, "[TIME] counted pairs", elapsed_time()
-    print *, "[TIME] total elapsed time", elapsed_time(.true.)
-  end if
+  if (rank == 0) print *, "[TIME] counted pairs", elapsed_time()
+
   ! sum results
   call MPI_REDUCE(pairs, sum_pairs, 1, MPI_INTEGER8, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
@@ -74,7 +72,11 @@ program main
   sum_pairs = sum_pairs / 2
 
   ! print results
-  if (rank == 0) print *, " [LOG] total pairs found", sum_pairs
+  if (rank == 0) then
+    print *, "[TIME] calculated sum", elapsed_time()
+    print *, "[TIME] total elapsed time", elapsed_time(.true.)
+    print *, " [LOG] total pairs found", sum_pairs
+  end if
 
   call MPI_FINALIZE(ierr)
 
@@ -323,7 +325,7 @@ contains
   end function shortest_distance
 
   ! uses three dimensional pythagoras to find the magnitude of a vector
-  double precision function magnitude(vector) result(res)
+  double precision function squared_magnitude(vector) result(res)
     implicit none
 
     ! vector is a array of values in the x, y and z axis
@@ -339,10 +341,7 @@ contains
     do axis = 1, 3
       res = res + vector(axis) ** 2
     end do
-
-    ! root the result to find the hypotenuse
-    res = sqrt(res)
-  end function magnitude
+  end function squared_magnitude
 
   ! finds a given ranks neighbour
   integer function pbc_rank(rank, nprocs) result(pbc)
@@ -376,7 +375,7 @@ contains
     end do
 
     ! check whether the magnitude of the difference is within the cutoff
-    is_pair = magnitude(difference) < cutoff
+    is_pair = squared_magnitude(difference) < cutoff ** 2
   end function check_pair
 
   integer(kind=int64) function count_pairs_between_arrays( &

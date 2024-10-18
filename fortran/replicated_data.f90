@@ -59,15 +59,19 @@ program main
     lower_boundary, upper_boundary, &
     start_index, end_index, cutoff)
 
+  call MPI_BARRIER(MPI_COMM_WORLD, ierr)
   if (rank == 0) then
     print *, "[TIME] counted pairs", elapsed_time()
-    print *, "[TIME] total elapsed time", elapsed_time(.true.)
   end if
 
   call MPI_REDUCE(pairs, sum_pairs, 1, MPI_INTEGER8, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
   ! print results
-  if (rank == 0) print *, " [LOG] pairs", sum_pairs
+  if (rank == 0) then
+    print *, "[TIME] calculated sum"
+    print *, "[TIME] total elapsed time", elapsed_time(.true.)
+    print *, " [LOG] pairs", sum_pairs
+  end if
 
   deallocate(posx)
   deallocate(posy)
@@ -316,7 +320,7 @@ contains
   end function shortest_distance
 
   ! uses three dimensional pythagoras to find the magnitude of a vector
-  double precision function magnitude(vector) result(res)
+  double precision function squared_magnitude(vector) result(res)
     implicit none
 
     ! vector is a array of values in the x, y and z axis
@@ -332,10 +336,7 @@ contains
     do axis = 1, 3
       res = res + vector(axis) ** 2
     end do
-
-    ! root the result to find the hypotenuse
-    res = sqrt(res)
-  end function magnitude
+  end function squared_magnitude
 
   integer(kind=int64) function count_pairs( &
       posx, posy, posz, &
@@ -381,7 +382,7 @@ contains
           end do
           
           ! if the difference between positions is within the cutoff count the pair
-          if (magnitude(difference) < cutoff) then
+          if (squared_magnitude(difference) < cutoff ** 2) then
             pairs = pairs + 1
           end if
         end if

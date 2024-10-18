@@ -208,7 +208,7 @@ contains
   end function shortest_distance
 
   ! uses three dimensional pythagoras to find the magnitude of a vector
-  double precision function magnitude(vector) result(res)
+  double precision function squared_magnitude(vector) result(res)
     implicit none
 
     ! vector is a array of values in the x, y and z axis
@@ -224,10 +224,7 @@ contains
     do axis = 1, 3
       res = res + vector(axis) ** 2
     end do
-
-    ! root the result to find the hypotenuse
-    res = sqrt(res)
-  end function magnitude
+  end function squared_magnitude
 
   integer(kind=int64) function count_pairs(posx, posy, posz, lower_boundary, upper_boundary, cutoff) result(pairs)
     implicit none
@@ -251,19 +248,20 @@ contains
     do i = 1, size(posx)
       ! get the current positions of the particles being looped over
       i_pos = [posx(i), posy(i), posz(i)]
-      do j = i + 1, size(posx)
+      j_loop: do j = i + 1, size(posx)
         j_pos = [posx(j), posy(j), posz(j)]
 
         ! find the difference between the two positions
         do axis = 1, 3
           difference(axis) = shortest_distance(i_pos(axis), j_pos(axis), lower_boundary(axis), upper_boundary(axis))
+          if (difference(axis) > cutoff) cycle j_loop
         end do
 
         ! if the difference between positions is within the cutoff count the pair
-        if (magnitude(difference) < cutoff) then
+        if (squared_magnitude(difference) < cutoff ** 2) then
           pairs = pairs + 1
         end if
-      end do
+      end do j_loop
     end do
   end function count_pairs
 end program main

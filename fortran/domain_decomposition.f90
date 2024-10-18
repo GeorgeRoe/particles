@@ -62,22 +62,23 @@ program main
     lower_boundary, upper_boundary, &
     cutoff, rank, coord, dims, comm_cart) 
 
-  if (rank == 0) then
-    print *, "[TIME] counted pairs", elapsed_time()
-    print *, "[TIME] total elapsed time", elapsed_time(.true.)
-  end if
+  if (rank == 0) print *, "[TIME] counted pairs", elapsed_time()
 
   ! sum results
   call MPI_REDUCE(pairs, sum_pairs, 1, MPI_INTEGER8, MPI_SUM, 0, comm_cart, ierr)
-
-  ! print results
-  if (rank == 0) print *, " [LOG] pairs", sum_pairs
 
   ! end the program
   deallocate(posx)
   deallocate(posy)
   deallocate(posz)
   deallocate(posi)
+
+  ! print results
+  if (rank == 0) then
+    print *, "[TIME] calculated sum", elapsed_time()
+    print *, "[TIME] total elapsed time", elapsed_time(.true.)
+    print *, " [LOG] pairs", sum_pairs
+  end if
 
   call MPI_FINALIZE(ierr)
 
@@ -93,7 +94,7 @@ contains
     ! implicit static keeps values between function calls
     real(kind=8) :: start_time = 0.0, end_time = 0.0, running_total = 0.0
     logical :: initialised = .false.
-  
+    
     if (present(get_total) .and. initialised) then ! if asking for the total then return it
       elapsed = running_total
     else if (initialised) then ! if the function has already been called once before
@@ -431,7 +432,7 @@ contains
   end function distance
 
   ! uses three dimensional pythagoras to find the magnitude of a vector
-  double precision function magnitude(vector) result(res)
+  double precision function squared_magnitude(vector) result(res)
     implicit none
 
     ! vector is a array of values in the x, y and z axis
@@ -447,10 +448,7 @@ contains
     do axis = 1, 3
       res = res + vector(axis) ** 2
     end do
-
-    ! root the result to find the hypotenuse
-    res = sqrt(res)
-  end function magnitude
+  end function squared_magnitude
 
   ! checks whether two coordinates are a pair
   logical function check_pair(ax, ay, az, ai, bx, by, bz, bi, lower_boundary, upper_boundary, cutoff) result(is_pair)
@@ -476,7 +474,7 @@ contains
       end do
 
       ! check whether the magnitude of the difference is within the cutoff
-      is_pair = magnitude(difference) < cutoff
+      is_pair = squared_magnitude(difference) < cutoff ** 2
     else
       is_pair = .false.
     end if
