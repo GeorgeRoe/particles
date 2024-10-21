@@ -563,10 +563,10 @@ contains
     end do
 
     ! allocate space to accumulate the particles from neighbours
-    allocate(accumx(size(posi) * 3))
-    allocate(accumy(size(posi) * 3))
-    allocate(accumz(size(posi) * 3))
-    allocate(accumi(size(posi) * 3))
+    allocate(accumx(size(posi) * 4))
+    allocate(accumy(size(posi) * 4))
+    allocate(accumz(size(posi) * 4))
+    allocate(accumi(size(posi) * 4))
     accum_count = 0
 
     ! share space around my processor
