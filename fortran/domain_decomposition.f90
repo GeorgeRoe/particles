@@ -30,7 +30,7 @@ program main
   double precision, dimension(3) :: lower_domain, upper_domain
 
   ! the number of pairs found
-  integer(kind=int64) :: pairs, sum_pairs
+  integer(kind=int64) :: pairs, sum_pairs = 0
 
   ! mpi boilerplate
   call MPI_INIT(ierr)
@@ -55,6 +55,12 @@ program main
                  lower_boundary, upper_boundary, lower_domain, upper_domain, cutoff, &
                  rank, dims, coord, comm_cart, ierr)
   if (rank == 0) print *, "[TIME] files read", elapsed_time()
+
+  if (.not. check_cutoff_valid(lower_domain, upper_domain, cutoff)) then
+    if (rank == 0) print *, " [LOG] invalid cutoff for num processes"
+    call MPI_FINALIZE(ierr)
+    stop
+  end if
 
   pairs = count_pairs( &
     posx, posy, posz, posi, particle_count, &
@@ -83,6 +89,23 @@ program main
   call MPI_FINALIZE(ierr)
 
 contains
+
+  logical function check_cutoff_valid(lower_domain, upper_domain, cutoff) result(valid)
+    implicit none
+
+    double precision, dimension(3), intent(in) :: lower_domain, upper_domain
+    double precision :: cutoff 
+
+    integer :: axis
+
+    valid = .true.
+    do axis = 1, 3
+      if ((upper_domain(axis) - lower_domain(axis)) / dble(2) < cutoff) then
+        valid = .false.
+        exit
+      end if
+    end do
+  end function check_cutoff_valid
 
   ! returns the elapsed time since the function was last called
   real(kind=8) function elapsed_time(get_total) result(elapsed)
