@@ -552,7 +552,7 @@ contains
     integer :: status(MPI_STATUS_SIZE)
     
     ! looping variables
-    integer :: x, y, z, axis, i, j
+    integer :: x, y, z, axis, i, j, k
     integer, dimension(3) :: direction
 
     ! region to filter particles in
@@ -561,11 +561,6 @@ contains
     ! variables to store the filtered particles
     double precision, dimension(:), allocatable :: filterx, filtery, filterz, filter
     integer, dimension(:), allocatable :: filteri
-
-    ! variables to store the accumulated neighbour particles
-    double precision, dimension(:), allocatable :: accumx, accumy, accumz
-    integer, dimension(:), allocatable :: accumi
-    integer :: accum_count
 
     ! variables to temporarily store particles received from neighbours
     double precision, dimension(:), allocatable :: bufferx, buffery, bufferz
@@ -585,12 +580,8 @@ contains
       boundary_diff(axis) = abs(upper_boundary(axis) - lower_boundary(axis))
     end do
 
-    ! allocate space to accumulate the particles from neighbours
-    allocate(accumx(size(posi) * 4))
-    allocate(accumy(size(posi) * 4))
-    allocate(accumz(size(posi) * 4))
-    allocate(accumi(size(posi) * 4))
-    accum_count = 0
+    ! pairs should start as 0
+    pairs = 0
 
     ! share space around my processor
     j = 0
@@ -599,12 +590,16 @@ contains
         do z = -1, 1
           j = j + 1
           if (x == 0 .and. y == 0 .and. z == 0) then
-            do i = 1, particle_count
-              accum_count = accum_count + 1
-              accumx(accum_count) = posx(i) 
-              accumy(accum_count) = posy(i) 
-              accumz(accum_count) = posz(i) 
-              accumi(accum_count) = posi(i) 
+            do i = 1, particle_count 
+              do k = 1, particle_count
+                if (check_pair( &
+                  posx(i), posy(i), posz(i), posi(i), &
+                  posx(k), posy(k), posz(k), posi(k), &
+                  lower_boundary, upper_boundary, cutoff &
+                )) then
+                  pairs = pairs + 1
+                end if
+              end do
             end do
           else
             ! find the neighbours for the current iteration
@@ -670,13 +665,34 @@ contains
             call correct_positions(y, coord(2), dims(2), boundary_diff(2), buffery)
             call correct_positions(z, coord(3), dims(3), boundary_diff(3), bufferz)
 
-            ! add the filtered particles to the accumulated list of neighbour particles
-            do i = 1, buffer_size
-              accum_count = accum_count + 1
-              accumx(accum_count) = bufferx(i) 
-              accumy(accum_count) = buffery(i) 
-              accumz(accum_count) = bufferz(i) 
-              accumi(accum_count) = bufferi(i) 
+            ! find the region in which particles should be compared to the recieved particles
+            do axis = 1, 3
+              if (direction(axis) == -1) then
+                lower_region(axis) = lower_domain(axis)
+                upper_region(axis) = lower_domain(axis) + cutoff
+              else if (direction(axis) == 1) then
+                lower_region(axis) = upper_domain(axis) - cutoff
+                upper_region(axis) = upper_domain(axis)
+              end if
+            end do
+
+            ! loop over all particles that are close enough to the given boundary and compare
+            do i = 1, particle_count
+              if ( &
+                posx(i) <= upper_region(1) .and. posx(i) >= lower_region(1) .and. &
+                posy(i) <= upper_region(2) .and. posy(i) >= lower_region(2) .and. &
+                posz(i) <= upper_region(3) .and. posz(i) >= lower_region(3) &
+              ) then
+                do k = 1, size(bufferi)
+                  if (check_pair( &
+                    posx(i), posy(i), posz(i), posi(i), &
+                    bufferx(k), buffery(k), bufferz(k), bufferi(k), &
+                    lower_boundary, upper_boundary, cutoff &
+                  )) then
+                    pairs = pairs + 1
+                  end if
+                end do
+              end if
             end do
 
             ! reset the filter and buffer arrays
@@ -684,22 +700,6 @@ contains
             deallocate(bufferx, buffery, bufferz, bufferi)
           end if
         end do
-      end do
-    end do
-
-    if (rank == 0) print *, "[TIME] shared particles", elapsed_time()
-
-    ! loops between all possible pairs of particles to find which ones are in range
-    pairs = 0
-    do i = 1, particle_count 
-      do j = 1, accum_count
-        if (check_pair( &
-          posx(i), posy(i), posz(i), posi(i), &
-          accumx(j), accumy(j), accumz(j), accumi(j), &
-          lower_boundary, upper_boundary, cutoff &
-        )) then
-          pairs = pairs + 1
-        end if
       end do
     end do
   end function count_pairs
